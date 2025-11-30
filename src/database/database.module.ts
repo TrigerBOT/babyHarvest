@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from './entities/user.entity';
+import { Pregnancy } from './entities/pregnancy.entity';
+import { PregnancyDay } from './entities/pregnancy-day.entity';
+import { Achievement } from './entities/achievement.entity';
 
 @Module({
   imports: [
@@ -13,7 +16,7 @@ import { User } from './entities/user.entity';
         // Парсим DATABASE_URL если он в формате postgresql://
         const config: any = {
           type: 'postgres',
-          entities: [User],
+          entities: [User, Pregnancy, PregnancyDay, Achievement],
           synchronize: configService.get<string>('NODE_ENV') === 'development',
           logging: configService.get<string>('NODE_ENV') === 'development',
         };
@@ -37,7 +40,7 @@ import { User } from './entities/user.entity';
       },
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Pregnancy, PregnancyDay, Achievement]),
   ],
   exports: [TypeOrmModule],
 })

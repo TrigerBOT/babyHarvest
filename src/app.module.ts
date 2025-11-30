@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { CacheModule } from './cache/cache.module';
 import { RedisThrottlerStorage } from './cache/throttler-storage/redis-throttler.storage';
 import { RedisModule } from './cache/redis.module';
+import { PregnancyModule } from './pregnancy/pregnancy.module';
+import { AchievementsModule } from './achievements/achievements.module';
 
 @Module({
   imports: [
@@ -26,6 +28,12 @@ import { RedisModule } from './cache/redis.module';
     
     // Авторизация
     AuthModule,
+    
+    // Pregnancy модуль
+    PregnancyModule,
+    
+    // Achievements модуль
+    AchievementsModule,
     
     // Rate limiting с Redis storage для распределенного rate limiting
     ThrottlerModule.forRootAsync({
