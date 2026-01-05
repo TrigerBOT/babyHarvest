@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { TestThrottlerGuard } from '../test-app.module';
+import { TransformResponseInterceptor } from '../../src/common/interceptors/transform-response.interceptor';
+import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
+import { closeApp } from '../utils/close-app';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -9,32 +14,54 @@ describe('Auth (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
+      providers: [
+        {
+          provide: APP_GUARD,
+          useClass: TestThrottlerGuard,
+        },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    
+    // Применяем те же глобальные настройки, что и в main.ts
+    app.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }));
+    
+    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalInterceptors(new TransformResponseInterceptor());
+    
     await app.init();
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) {
+      await closeApp(app);
+    }
   });
 
   describe('/auth/register (POST)', () => {
     it('should register a new user', () => {
+      const uniqueEmail = `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
       return request(app.getHttpServer())
         .post('/auth/register')
         .send({
-          email: 'test@example.com',
+          email: uniqueEmail,
           password: 'password123',
           name: 'Test User',
         })
         .expect(201)
         .expect((res) => {
-          expect(res.body).toHaveProperty('accessToken');
-          expect(res.body).toHaveProperty('refreshToken');
-          expect(res.body).toHaveProperty('user');
-          expect(res.body.user.email).toBe('test@example.com');
-          expect(res.body.user.name).toBe('Test User');
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toHaveProperty('accessToken');
+          expect(res.body.data).toHaveProperty('refreshToken');
+          expect(res.body.data).toHaveProperty('user');
+          expect(res.body.data.user.email).toBe(uniqueEmail);
+          expect(res.body.data.user.name).toBe('Test User');
         });
     });
 
@@ -64,17 +91,26 @@ describe('Auth (e2e)', () => {
           email: 'invalid-email',
           password: 'password123',
         })
-        .expect(400);
+        .expect(400)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('success', false);
+          expect(res.body).toHaveProperty('error');
+        });
     });
 
     it('should return 400 for short password', () => {
+      const uniqueEmail = `test2-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
       return request(app.getHttpServer())
         .post('/auth/register')
         .send({
-          email: 'test@example.com',
+          email: uniqueEmail,
           password: '123',
         })
-        .expect(400);
+        .expect(400)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('success', false);
+          expect(res.body).toHaveProperty('error');
+        });
     });
   });
 
@@ -99,10 +135,12 @@ describe('Auth (e2e)', () => {
         })
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('accessToken');
-          expect(res.body).toHaveProperty('refreshToken');
-          expect(res.body).toHaveProperty('user');
-          expect(res.body.user.email).toBe('login@example.com');
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toHaveProperty('accessToken');
+          expect(res.body.data).toHaveProperty('refreshToken');
+          expect(res.body.data).toHaveProperty('user');
+          expect(res.body.data.user.email).toBe('login@example.com');
         });
     });
 
@@ -129,18 +167,24 @@ describe('Auth (e2e)', () => {
 
   describe('/auth/me (GET)', () => {
     let accessToken: string;
+    let userEmail: string;
 
     beforeEach(async () => {
       // Регистрируем пользователя и получаем токен
+      userEmail = `me-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
       const response = await request(app.getHttpServer())
         .post('/auth/register')
         .send({
-          email: 'me@example.com',
+          email: userEmail,
           password: 'password123',
           name: 'Me User',
         });
 
-      accessToken = response.body.accessToken;
+      if (response.status !== 201 || !response.body.data?.accessToken) {
+        throw new Error(`Failed to register: ${JSON.stringify(response.body)}`);
+      }
+
+      accessToken = response.body.data.accessToken;
     });
 
     it('should return user info with valid token', () => {
@@ -149,9 +193,11 @@ describe('Auth (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('id');
-          expect(res.body).toHaveProperty('email', 'me@example.com');
-          expect(res.body).toHaveProperty('name', 'Me User');
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toHaveProperty('id');
+          expect(res.body.data).toHaveProperty('email', userEmail);
+          expect(res.body.data).toHaveProperty('name', 'Me User');
         });
     });
 
@@ -165,6 +211,86 @@ describe('Auth (e2e)', () => {
       return request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', 'Bearer invalid-token')
+        .expect(401);
+    });
+  });
+
+  describe('/auth/refresh (POST)', () => {
+    let refreshToken: string;
+
+    beforeEach(async () => {
+      const uniqueEmail = `refresh-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: uniqueEmail,
+          password: 'password123',
+          name: 'Refresh User',
+        });
+
+      if (response.status !== 201 || !response.body.data?.refreshToken) {
+        throw new Error(`Failed to register: ${JSON.stringify(response.body)}`);
+      }
+
+      refreshToken = response.body.data.refreshToken;
+    }, 10000); // Увеличиваем таймаут для beforeEach
+
+    it('should refresh access token with valid refresh token', () => {
+      return request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toHaveProperty('accessToken');
+          expect(res.body.data).toHaveProperty('refreshToken');
+          expect(res.body.data.accessToken).not.toBe(refreshToken);
+        });
+    });
+
+    it('should return 401 with invalid refresh token', () => {
+      return request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: 'invalid-token' })
+        .expect(401);
+    });
+  });
+
+  describe('/auth/logout (POST)', () => {
+    let accessToken: string;
+
+    beforeEach(async () => {
+      const uniqueEmail = `logout-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: uniqueEmail,
+          password: 'password123',
+        });
+
+      if (response.status !== 201 || !response.body.data?.accessToken) {
+        throw new Error(`Failed to register: ${JSON.stringify(response.body)}`);
+      }
+
+      accessToken = response.body.data.accessToken;
+    });
+
+    it('should logout successfully with valid token', () => {
+      return request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body).toHaveProperty('data');
+          expect(res.body.data).toHaveProperty('message');
+        });
+    });
+
+    it('should return 401 without token', () => {
+      return request(app.getHttpServer())
+        .post('/auth/logout')
         .expect(401);
     });
   });
