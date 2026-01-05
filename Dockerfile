@@ -1,5 +1,5 @@
 # Dockerfile для разработки
-FROM node:18-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
@@ -11,9 +11,6 @@ RUN npm ci
 
 # Копируем исходный код
 COPY . .
-
-# Генерируем Prisma клиент
-RUN npx prisma generate
 
 # Собираем приложение
 RUN npm run build

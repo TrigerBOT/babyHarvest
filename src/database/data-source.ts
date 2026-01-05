@@ -12,6 +12,9 @@ const configService = new ConfigService();
 
 const databaseUrl = configService.get<string>('DATABASE_URL');
 
+// Используем только один путь к миграциям, чтобы избежать дублирования
+// typeorm-ts-node-commonjs может загружать .ts файлы напрямую
+// В production нужно будет использовать скомпилированные .js файлы из dist
 const dataSourceConfig: any = {
   type: 'postgres',
   entities: [User, Pregnancy, PregnancyDay, Achievement],

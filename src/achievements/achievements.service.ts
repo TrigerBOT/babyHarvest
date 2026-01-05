@@ -4,7 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Achievement, AchievementType } from '../database/entities/achievement.entity';
 import { Pregnancy } from '../database/entities/pregnancy.entity';
 import { CacheService } from '../cache/cache.service';
-import { ACHIEVEMENTS_CONFIG, AchievementConfig } from './config/achievements.config';
+import { ACHIEVEMENTS_CONFIG } from './config/achievements.config';
 import { AchievementsResponseDto } from './dto/achievements-response.dto';
 
 @Injectable()

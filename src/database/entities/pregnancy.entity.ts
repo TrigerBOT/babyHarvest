@@ -11,7 +11,7 @@ import {
 import { User } from './user.entity';
 
 @Entity('pregnancies')
-@Index(['user_id'], { unique: true })
+@Index(['userId'], { unique: true })
 export class Pregnancy {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

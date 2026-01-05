@@ -21,7 +21,8 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "import:pregnancy-data": "ts-node scripts/import-pregnancy-data.ts"
   },
   "keywords": [
     "nestjs",
@@ -42,10 +43,10 @@
     "@nestjs/swagger": "^11.2.3",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
-    "@nestjs/cache-manager": "^2.3.0",
-    "cache-manager-redis-yet": "^5.1.2",
+    "@nestjs/cache-manager": "^3.1.0",
+    "cache-manager": "^6.1.1",
     "ioredis": "^5.4.1",
-    "keyv": "^4.5.4",
+    "keyv": "^5.2.0",
     "@keyv/redis": "^3.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/helmet": "^0.0.48",

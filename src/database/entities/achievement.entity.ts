@@ -14,8 +14,8 @@ export enum AchievementType {
 }
 
 @Entity('achievements')
-@Index(['user_id'])
-@Index(['user_id', 'achievement_type', 'achievement_key'], { unique: true })
+@Index(['userId'])
+@Index(['userId', 'achievementType', 'achievementKey'], { unique: true })
 export class Achievement {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

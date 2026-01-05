@@ -13,7 +13,8 @@ export class CacheService {
    * Получить значение из кэша
    */
   async get<T>(key: string): Promise<T | undefined> {
-    return this.cacheManager.get<T>(key);
+    const value = await this.cacheManager.get<T>(key);
+    return value ?? undefined;
   }
 
   /**
@@ -35,13 +36,6 @@ export class CacheService {
    */
   async delete(key: string): Promise<void> {
     await this.cacheManager.del(key);
-  }
-
-  /**
-   * Очистить весь кэш
-   */
-  async reset(): Promise<void> {
-    await this.cacheManager.reset();
   }
 
   /**

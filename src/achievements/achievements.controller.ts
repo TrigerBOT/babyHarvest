@@ -34,12 +34,8 @@ export class AchievementsController {
   })
   async getAll(
     @Request() req: { user: { id: string } },
-  ): Promise<{ success: true; data: AchievementsResponseDto }> {
-    const data = await this.achievementsService.getAllAchievements(req.user.id);
-    return {
-      success: true,
-      data,
-    };
+  ): Promise<AchievementsResponseDto> {
+    return this.achievementsService.getAllAchievements(req.user.id);
   }
 }
 

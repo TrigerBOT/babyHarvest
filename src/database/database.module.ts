@@ -5,6 +5,7 @@ import { User } from './entities/user.entity';
 import { Pregnancy } from './entities/pregnancy.entity';
 import { PregnancyDay } from './entities/pregnancy-day.entity';
 import { Achievement } from './entities/achievement.entity';
+import { PregnancyDataImporterService } from './services/pregnancy-data-importer.service';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { Achievement } from './entities/achievement.entity';
         const config: any = {
           type: 'postgres',
           entities: [User, Pregnancy, PregnancyDay, Achievement],
-          synchronize: configService.get<string>('NODE_ENV') === 'development',
+          synchronize: false, // Отключаем synchronize, используем только миграции
           logging: configService.get<string>('NODE_ENV') === 'development',
         };
 
@@ -42,7 +43,8 @@ import { Achievement } from './entities/achievement.entity';
     }),
     TypeOrmModule.forFeature([User, Pregnancy, PregnancyDay, Achievement]),
   ],
-  exports: [TypeOrmModule],
+  providers: [PregnancyDataImporterService],
+  exports: [TypeOrmModule, PregnancyDataImporterService],
 })
 export class DatabaseModule {}
 

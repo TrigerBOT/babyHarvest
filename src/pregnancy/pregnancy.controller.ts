@@ -46,12 +46,8 @@ export class PregnancyController {
   })
   async getToday(
     @Request() req: { user: { id: string } },
-  ): Promise<{ success: true; data: TodayDataResponseDto }> {
-    const data = await this.pregnancyService.getTodayData(req.user.id);
-    return {
-      success: true,
-      data,
-    };
+  ): Promise<TodayDataResponseDto> {
+    return this.pregnancyService.getTodayData(req.user.id);
   }
 
   @Get('day/:day')
@@ -76,17 +72,14 @@ export class PregnancyController {
     @Param('day', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }))
     day: number,
     @Request() req: { user: { id: string } },
-  ): Promise<{ success: true; data: PregnancyDayResponseDto }> {
+  ): Promise<PregnancyDayResponseDto> {
     // Валидация диапазона
     if (day < 1 || day > 280) {
       throw new BadRequestException({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Day must be between 1 and 280',
-          details: {
-            day: 'Day must be between 1 and 280',
-          },
+        code: 'VALIDATION_ERROR',
+        message: 'Day must be between 1 and 280',
+        details: {
+          day: 'Day must be between 1 and 280',
         },
       });
     }
@@ -100,23 +93,16 @@ export class PregnancyController {
       );
       if (day > currentDay) {
         throw new BadRequestException({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Cannot access future days',
-            details: {
-              day: 'Day cannot be greater than current day',
-            },
+          code: 'VALIDATION_ERROR',
+          message: 'Cannot access future days',
+          details: {
+            day: 'Day cannot be greater than current day',
           },
         });
       }
     }
 
-    const data = await this.pregnancyService.getDayDataResponse(day);
-    return {
-      success: true,
-      data,
-    };
+    return this.pregnancyService.getDayDataResponse(day);
   }
 
   @Post('setup')
@@ -133,7 +119,13 @@ export class PregnancyController {
   async setup(
     @Body() dto: SetupPregnancyDto,
     @Request() req: { user: { id: string } },
-  ): Promise<{ success: true; data: any }> {
+  ): Promise<{
+    id: string;
+    start_date: string | undefined;
+    due_date: string | undefined;
+    current_day: number;
+    created_at: string;
+  }> {
     try {
       const pregnancy = await this.pregnancyService.setupPregnancy(req.user.id, dto);
       const currentDay = this.pregnancyService.calculateCurrentDay(
@@ -142,22 +134,16 @@ export class PregnancyController {
       );
 
       return {
-        success: true,
-        data: {
-          id: pregnancy.id,
-          start_date: pregnancy.startDate?.toISOString().split('T')[0],
-          due_date: pregnancy.dueDate?.toISOString().split('T')[0],
-          current_day: currentDay,
-          created_at: pregnancy.createdAt.toISOString(),
-        },
+        id: pregnancy.id,
+        start_date: pregnancy.startDate?.toISOString().split('T')[0],
+        due_date: pregnancy.dueDate?.toISOString().split('T')[0],
+        current_day: currentDay,
+        created_at: pregnancy.createdAt.toISOString(),
       };
     } catch (error: any) {
       throw new BadRequestException({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: error.message || 'Invalid pregnancy data',
-        },
+        code: 'VALIDATION_ERROR',
+        message: error.message || 'Invalid pregnancy data',
       });
     }
   }
